@@ -14,9 +14,9 @@ pml.test <- pml.pruned[-train.index,]
 fitControl <- trainControl(
      method = "repeatedcv",
      number = 10,
-     repeats = 10)
+     repeats = 1)
 
-mod1 <- train(classe ~ ., data = pml.train, method = 'rf', trControl = fitControl, preProcess = "pca")
+mod1 <- train(classe ~ ., data = pml.train, method = 'rf', trControl = fitControl)
 
 pm.test.preds <- predict(mod1, pml.test)
 

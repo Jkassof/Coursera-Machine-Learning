@@ -1,3 +1,6 @@
+---
+output: pdf_document
+---
 Modeling Good Form
 -------
 
@@ -23,7 +26,7 @@ grid.raster(img)
 By looking at the data in a spreadsheet viewer of choice (mine is Excel) I can see there are a lot of columns that are not going to be useful. I see lots of blanks, "NA"s, and "#Div/0"s, so I am going to set those as my NA values for when I read the file .CSV file into R. Once I read the data in, I am going to count how many NAs are in each column, then take the names of each column with less than 10,000 NAs. When I looked at my list of NA counts by column, I noticed they were all either 0 or in the 19,000 range. So it seems to be all or nothing with regards to these columns. I next subsetted my original data with just the "good variables" (i.e. those without NAs), and took out the first 7 columns as they were all metadata related. We want to build our predictions using only sensor data.
 
 ```{r, echo=FALSE}
-load("~/datasciencecoursera/Machine Learning/Exercise ID Project/MLmodelproj.RData")
+load("~/datasciencecoursera/Machine Learning/Exercise ID Project/Coursera-Machine-Learning/MLmodelproj.RData")
 ```
 
 ```{r processing, warning=FALSE, message=FALSE, results='hide'}
@@ -36,10 +39,10 @@ fin <- apply(apply(pml, 2, is.na), 2, sum)               # Count number of NAs i
 good.vars.names <- names(fin[fin<10000])                 # Make a vector of good column names, used to subet
 
 pml.df <- tbl_df(pml)
-pml.pruned <- select(pml.df, one_of(good.vars.names)) %>% select(-(1:7))
+pml.pruned <- select(pml.df, one_of(good.vars.names)) %>% select(-(1:7)) # Use dplyr to subset only variables of interest
 ```
 
-Now that we have gotten down to the variables of interest, we partition our data into training and test sets. We are going to use the Random Forest algorithm because it is one of the best classifier algos around.  One of the downsides of Random Forests are their tendancy towards overfitting. To avoid this, we are going to use 10-fold cross-validation repeated 10 times. Essentially this means R will take different subsets of the training data, build models, validate them against the other piece of the training data and average it all together to get our final model. Just a warning, repeated cross-validation can GREATLY increase the amount of time it takes your model to run. I set up the cross-validadtion below in the `trainControl` function, which will be passed to our model building code next.
+Now that we have gotten down to the variables of interest, we partition our data into training and test sets. We are going to use the Random Forest algorithm because it is one of the best classifier algos around.  One of the downsides of Random Forests are their tendancy towards overfitting. To avoid this, we are going to use 10-fold cross-validation. Essentially this means R will take different subsets of the training data, build models, validate them against the other piece of the training data and average it all together to get our final model. Just a warning, repeated cross-validation can GREATLY increase the amount of time it takes your model to run. I set up the cross-validadtion below in the `trainControl` function, which will be passed to our model building code next.
 
 
 ```{r, eval=FALSE }
@@ -55,12 +58,12 @@ fitControl <- trainControl(
 
 ### Model
 
-R has a package called `caret` which acts as unified interface for the many machine learning methods that exist. The below line of code tells R to build a prediction model of the classe variable against all other variables in the `pml.test` dataset. The modifiers we added will tell it to use the cross-validation we set up above, use the Random Forest method, and use Principal Component Analysis (PCA) as a preprocessing technique. Principal Component Analysis is a preprocessing technique that will identify the most important predictors, and only use those. In our case, the final Random Forest actually only used 25 of the 52 variables we passed to `caret` thanks to PCA.
+R has a package called `caret` which acts as unified interface for the many machine learning methods that exist. The below line of code tells R to build a prediction model of the classe variable against all other variables in the `pml.test` dataset.
 
-Be warned, the below line of code took overnight to run on my 2015 Macbook Air. For faster processing, a computer with faster (or multiple) processors or cloud computing could be utilized.
+Be warned, the below line of code took about an hour to run on my 2015 Macbook Air. For faster processing, a computer with faster (or multiple) processors or cloud computing could be utilized.
 
 ```{r model, eval = FALSE}
-pml.rf.mod <- train(classe ~ ., data = pml.test, method = 'rf', trControl = fitControl, preProcess = "PCA")
+pml.rf.mod <- train(classe ~ ., data = pml.test, method = 'rf', trControl = fitControl)
 ```
 
 ### Checking Prediction Accuracy
@@ -71,11 +74,11 @@ Let's take a look at our final model using the below code including a confusion 
 mod1$finalModel ; confusionMatrix(mod1)
 ```
 
-We have an OOB error estimate of 2.33%. Let's now use our model on the test data partition we made earlier and look at the confusion matrix. 
+We have an OOB error estimate of 0.76%. Let's now use our model on the test data partition we made earlier and look at the confusion matrix. 
 
 ```{r predictions}
 pm.test.preds <- predict(mod1, newdata = pml.test) 
 confusionMatrix(pm.test.preds, pml.test$classe)
 ```
 
-So we have an accuracy of 97.76% and an extremely significant P-Value. This accuracy percentage supports our OOB error estimate, so it's somewhat safe to assume this model would stand up being applied to large quantities of real-world data. While there are further methods of pruning our tree and getting more accuracy out of our model, I believe this level of accuracy is sufficient for the purposes of this project. If this model were being developed for a production model  This was supported by correctly predicting 20/20 of the test cases provided by the professors.
+So we have an accuracy of 99.3% and an extremely significant P-Value. This accuracy percentage supports our OOB error estimate, so it's somewhat safe to assume this model would stand up being applied to large quantities of real-world data. While there are further methods of pruning our tree or stacking this algortihm with another to get a bit more accuracy out of our model, I believe this level of accuracy is sufficient for the purposes of this project. This was supported by correctly predicting 20/20 of the test cases provided by the professors.
